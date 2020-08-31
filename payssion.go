@@ -146,7 +146,7 @@ func md5sum(s string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
-func NewCallBack(apikey, apiSecret string, do func() error) gin.HandlerFunc {
+func NewCallBack(apikey, apiSecret string, do func(map[string]string) error) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		//	app_name：应用名称
 		//	pm_id：支付方式id: 例如 alipay_cn. 详细pm_id请参考
@@ -176,7 +176,7 @@ func NewCallBack(apikey, apiSecret string, do func() error) gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, nil)
 			return
 		}
-		err := do()
+		err := do(data)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, nil)
 			return
