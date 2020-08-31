@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -117,8 +116,6 @@ func (c Client) Create(data url.Values) (CreateResponse, error) {
 		}
 		sig = append(sig, data.Get(v))
 	}
-
-	log.Println(strings.Join(sig, "|"))
 	data.Set("api_sig", md5sum(strings.Join(sig, "|")))
 	u := fmt.Sprintf("%v/api/v1/payment/create", c.apiHost())
 	r, err := http.NewRequest(http.MethodPost, u, strings.NewReader(data.Encode()))
