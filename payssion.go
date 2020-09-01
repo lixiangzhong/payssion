@@ -146,7 +146,30 @@ func md5sum(s string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
-func NewCallBack(apikey, apiSecret string, do func(map[string]string) error) gin.HandlerFunc {
+type NotifyData struct {
+	Appname       string `form:"app_name" json:"app_name"`
+	PmID          string `form:"pm_id" json:"pm_id"`
+	TransactionID string `json:"transaction_id" db:"transaction_id" form:"transaction_id"`
+	OrderID       string `form:"order_id" json:"order_id"`
+	Amount        string `form:"amount" json:"amount"`
+	Paid          string `json:"paid" db:"paid" form:"paid"`
+	Currency      string `json:"currency" db:"currency" form:"currency"`
+	Description   string `json:"description" db:"description" form:"description"`
+	State         string `json:"state" db:"state" form:"state"`
+	NotifySig     string `form:"notify_sig" json:"notify_sig"`
+}
+
+func (n NotifyData) Verify(apikey, apiSecret string) bool {
+	//		"notify": {"api_key", "pm_id", "amount", "currency", "order_id", "state", "secret_key"},
+	sig := []string{apikey, n.PmID, n.Amount, n.Currency, n.OrderID, n.State, apiSecret}
+	want := md5sum(strings.Join(sig, "|"))
+	if want != n.NotifySig {
+		return false
+	}
+	return true
+}
+
+func NewCallBack(apikey, apiSecret string, do func(NotifyData) error) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		//	app_name：应用名称
 		//	pm_id：支付方式id: 例如 alipay_cn. 详细pm_id请参考
@@ -159,20 +182,13 @@ func NewCallBack(apikey, apiSecret string, do func(map[string]string) error) gin
 		//	description：订单描述
 		//	state：支付状态
 		//	notify_sig: 异步通知签名，具体规则参考签名规则。
-		var data map[string]string
+		var data NotifyData
 		if err := c.ShouldBind(&data); err != nil {
 			c.JSON(http.StatusBadRequest, nil)
 			return
 		}
-		data["api_key"] = apikey
-		data["secret_key"] = apiSecret
-		var sig []string
-		for _, v := range sigKeys["notify"] {
-			sig = append(sig, data[v])
-		}
-		want := md5sum(strings.Join(sig, "|"))
-		got := data["notify_sig"]
-		if want != got {
+		ok := data.Verify(apikey, apiSecret)
+		if !ok {
 			c.JSON(http.StatusUnauthorized, nil)
 			return
 		}
