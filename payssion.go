@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
@@ -62,14 +63,9 @@ func (c Client) do(r *http.Request) (jsoniter.Any, error) {
 	defer func() {
 		io.Copy(c.debug, buf)
 	}()
-	fmt.Fprintf(buf, "%v %v\n", r.Method, r.URL.String())
-	if r.GetBody != nil {
-		rc, err := r.GetBody()
-		if err == nil {
-			b, _ := ioutil.ReadAll(rc)
-			buf.Write(b)
-			rc.Close()
-		}
+	b, err := httputil.DumpRequest(r, true)
+	if err == nil {
+		buf.Write(b)
 	}
 	var data jsoniter.Any
 	rsp, err := c.httpclient.Do(r)
@@ -77,11 +73,14 @@ func (c Client) do(r *http.Request) (jsoniter.Any, error) {
 		return data, err
 	}
 	defer rsp.Body.Close()
-	b, err := ioutil.ReadAll(rsp.Body)
+	b, err = httputil.DumpResponse(rsp, true)
+	if err == nil {
+		buf.Write(b)
+	}
+	b, err = ioutil.ReadAll(rsp.Body)
 	if err != nil {
 		return data, err
 	}
-	fmt.Fprintln(buf, string(b))
 	err = json.Unmarshal(b, &data)
 	return data, err
 }
