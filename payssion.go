@@ -75,6 +75,7 @@ func (c Client) do(r *http.Request) (jsoniter.Any, error) {
 	defer rsp.Body.Close()
 	b, err = httputil.DumpResponse(rsp, true)
 	if err == nil {
+		buf.WriteByte('\n')
 		buf.Write(b)
 	}
 	b, err = ioutil.ReadAll(rsp.Body)
